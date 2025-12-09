@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discover Your World 🌍</title>
+  
+  <link rel="icon" href="https://edube.org/uploads/media/default/0001/04/web-favicon.png" type="image/png">
+  
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <style>
+    /* 1. Variáveis de Cores e Reset */
+    :root {
+      --primary: #4a90e2;
+      --secondary: #2c3e50;
+      --accent: #ff6b6b;
+      --bg-color: #f0f2f5;
+      --card-bg: #ffffff;
+      --shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg-color);
+      color: var(--secondary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    /* 2. Cabeçalho Estilizado */
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      animation: fadeIn 1s ease-in;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      color: var(--secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      color: #666;
+      font-size: 1.1rem;
+    }
+
+    /* 3. Botão Moderno com Efeitos */
+    button#getLocation {
+      background: linear-gradient(135deg, var(--primary), #357abd);
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      font-size: 1rem;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(74, 144, 226, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    button#getLocation:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(74, 144, 226, 0.6);
+    }
+
+    button#getLocation:active {
+      transform: translateY(0);
+    }
+
+    /* 4. Container do Mapa */
+    .map-container {
+      width: 100%;
+      max-width: 1000px;
+      height: 60vh; /* Altura responsiva */
+      background: var(--card-bg);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* Loading overlay */
+    .loader {
+      display: none; /* Escondido por padrão */
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255,255,255,0.9);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      z-index: 1000;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Responsividade */
+    @media (max-width: 600px) {
+      h1 { font-size: 1.8rem; }
+      .map-container { height: 50vh; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Discover Your World 🌍</h1>
+    <p>Explore o mundo e encontre sua localização exata.</p>
+  </header>
+
+  <button id="getLocation">
+    <span>📍</span> Descobrir Minha Localização
+  </button>
+
+  <div id="loader" class="loader">Buscando satélites... 🛰️</div>
+
+  <main class="map-container">
+    <div id="map"></div>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <script>
+    // 1. Inicializar o Mapa
+    // Centralizado inicialmente no 'mundo' (coordenadas 20, 0) com zoom 2
+    const map = L.map('map').setView([20, 0], 2);
+
+    // 2. Adicionar o estilo do mapa (Tile Layer)
+    // Usando OpenStreetMap (gratuito e open source)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // 3. Lógica de Geolocalização
+    const btnLocation = document.getElementById('getLocation');
+    const loader = document.getElementById('loader');
+
+    btnLocation.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        alert('Seu navegador não suporta geolocalização.');
+        return;
+      }
+
+      loader.style.display = 'block';
+      btnLocation.disabled = true;
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          // Sucesso
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const accuracy = position.coords.accuracy;
+
+          // Remover loader
+          loader.style.display = 'none';
+          btnLocation.disabled = false;
+          btnLocation.innerHTML = "📍 Localização Encontrada!";
+
+          // Mover o mapa para a posição do usuário
+          map.flyTo([lat, lng], 13, {
+            duration: 2 // Animação suave de 2 segundos
+          });
+
+          // Adicionar um marcador
+          L.marker([lat, lng]).addTo(map)
+            .bindPopup(`<b>Você está aqui!</b><br>Precisão de aprox. ${Math.round(accuracy)} metros.`)
+            .openPopup();
+            
+          // Adicionar um círculo de precisão
+          L.circle([lat, lng], { radius: accuracy }).addTo(map);
+        },
+        (error) => {
+          // Erro
+          loader.style.display = 'none';
+          btnLocation.disabled = false;
+          let msg = "Erro desconhecido.";
+          if (error.code === 1) msg = "Permissão negada. Por favor, permita o acesso à localização.";
+          if (error.code === 2) msg = "Posição indisponível.";
+          if (error.code === 3) msg = "Tempo esgotado.";
+          alert(msg);
+        }
+      );
+    });
+
+    // 4. Adicionar interatividade extra (clicar em qualquer lugar)
+    map.on('click', (e) => {
+      L.popup()
+        .setLatLng(e.latlng)
+        .setContent(`Você clicou nas coordenadas:<br>${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`)
+        .openOn(map);
+    });
+
+  </script>
+</body>
+</html>
